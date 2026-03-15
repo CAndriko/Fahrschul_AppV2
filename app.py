@@ -98,16 +98,24 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für sauberes Design: Blaue Buttons und unsichtbarer Header
+    # CSS für sauberes Design: Blaue Buttons, unsichtbarer Header und Toolbar entfernt
     st.markdown("""
         <style>
         div.stButton > button[kind="primary"] { background-color: #007bff !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
+        
         header[data-testid="stHeader"] { 
             background: transparent !important; 
             background-color: transparent !important;
             border-bottom: none !important; 
         }
+        
+        /* Versteckt die Streamlit Cloud Toolbar (Fork, GitHub Logo etc.) */
+        [data-testid="stToolbar"] { display: none !important; }
+        
+        /* Reduziert den weißen Abstand oben */
+        .block-container { padding-top: 2rem !important; }
+        
         button[data-testid="stSidebarCollapseIcon"] { color: white !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}

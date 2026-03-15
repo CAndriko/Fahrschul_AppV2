@@ -98,25 +98,27 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für sauberes Design: Blaue Buttons, unsichtbarer Header und Toolbar entfernt
+    # CSS für erzwungenes weißes Design (Light Mode) zur Tarnung des Headers
     st.markdown("""
         <style>
-        div.stButton > button[kind="primary"] { background-color: #007bff !important; border: none !important; }
+        /* Gesamte App zwingend auf weißen Hintergrund und dunkle Schrift setzen */
+        .stApp { background-color: #FFFFFF !important; color: #000000 !important; }
+        
+        /* Header ebenfalls weiß, damit er unsichtbar verschmilzt */
+        header[data-testid="stHeader"] { background-color: #FFFFFF !important; border: none !important; }
+        
+        /* Sidebar in einem sehr hellen Grau zur Abgrenzung */
+        [data-testid="stSidebar"] { background-color: #F8F9FA !important; }
+        
+        /* Texte erzwingen (falls Handy auf Dark Mode steht) */
+        p, h1, h2, h3, h4, h5, h6, label { color: #000000 !important; }
+        
+        /* Blaue Buttons beibehalten */
+        div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        header[data-testid="stHeader"] { 
-            background: transparent !important; 
-            background-color: transparent !important;
-            border-bottom: none !important; 
-        }
-        
-        /* Versteckt die Streamlit Cloud Toolbar (Fork, GitHub Logo etc.) */
+        /* Störende Streamlit UI Elemente ausblenden */
         [data-testid="stToolbar"] { display: none !important; }
-        
-        /* Reduziert den weißen Abstand oben */
-        .block-container { padding-top: 2rem !important; }
-        
-        button[data-testid="stSidebarCollapseIcon"] { color: white !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         </style>
@@ -131,7 +133,6 @@ def main():
         st.subheader("Logbuch Michael")
         st.markdown("---")
         
-        # Formular für neue Schüler (verhindert Streamlit-Abstürze)
         with st.expander("👤 Schüler hinzufügen"):
             with st.form("add_student_form", clear_on_submit=True):
                 n_in = st.text_input("Name")
@@ -147,7 +148,6 @@ def main():
         s_list = list(st.session_state.db["students"].keys())
         selected_student = st.selectbox("📂 Aktiver Schüler", s_list) if s_list else None
 
-        # Löschfunktion
         if selected_student:
             st.markdown("---")
             if st.session_state.delete_confirm != selected_student:
@@ -183,7 +183,6 @@ def main():
                 
                 phone = st.session_state.db["students"][selected_student].get("phone", "")
                 if phone:
-                    # Emoji-Fix durch urllib.parse.quote angewendet
                     msg_encoded = urllib.parse.quote(res.get("whatsapp_msg", ""))
                     st.link_button("In WhatsApp senden", f"https://wa.me/{phone}?text={msg_encoded}", type="primary", use_container_width=True)
                 
@@ -202,7 +201,6 @@ def main():
                     else: c2.write(str(item))
                 
                 st.markdown("---")
-                # Fahrt abspeichern
                 if st.button("💾 In die Akte speichern", type="primary", use_container_width=True):
                     log = {"date": datetime.now().strftime("%d.%m.%Y, %H:%M"), "whatsapp_msg": res.get("whatsapp_msg", ""), "logbook": res.get("logbook", [])}
                     st.session_state.db["students"][selected_student]["logs"].insert(0, log)

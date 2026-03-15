@@ -98,25 +98,24 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für das makellose, weiße Design und mobile Fixes
+    # CSS für das makellose, weiße Design und mobile Fixes (Holzhammer-Methode für das Menü-Icon)
     st.markdown("""
         <style>
         /* App zwingend auf weißen Hintergrund setzen */
         .stApp { background-color: #FFFFFF !important; color: #000000 !important; }
         
-        /* Header komplett weiß machen */
-        header[data-testid="stHeader"] { background-color: #FFFFFF !important; border: none !important; }
+        /* Header transparent machen, damit er keine Icons verdeckt */
+        header[data-testid="stHeader"] { background-color: transparent !important; border: none !important; }
         
-        /* FIX: Mobile Menü-Icon (Hamburger) tiefschwarz machen */
-        [data-testid="collapsedControl"] { color: #000000 !important; }
-        [data-testid="collapsedControl"] svg { fill: #000000 !important; color: #000000 !important; }
+        /* HOLZHAMMER: Jedes Icon/Button im Header MUSS schwarz sein */
+        header[data-testid="stHeader"] button * {
+            fill: #000000 !important;
+            color: #000000 !important;
+            stroke: #000000 !important;
+        }
         
-        /* Desktop Menü-Icon schwarz machen */
-        button[data-testid="stSidebarCollapseIcon"] { color: #000000 !important; }
-        button[data-testid="stSidebarCollapseIcon"] svg { fill: #000000 !important; color: #000000 !important; }
-        
-        /* Sidebar komplett weiß, wie gewünscht */
-        [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
+        /* Sidebar komplett in hellem Grau zur Abgrenzung */
+        [data-testid="stSidebar"] { background-color: #F8F9FA !important; }
         
         /* Alle Standard-Texte schwarz erzwingen */
         p, h1, h2, h3, h4, h5, h6, label, span { color: #000000 !important; }
@@ -125,7 +124,7 @@ def main():
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        /* Streamlit Cloud UI Elemente entfernen */
+        /* Streamlit Cloud UI Elemente restlos entfernen (Fork/GitHub Icon) */
         [data-testid="stToolbar"] { display: none !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -181,7 +180,7 @@ def main():
 
     # Tab 1: Neue Aufnahme analysieren
     with t1:
-        # Native Streamlit Audio Input
+        # Native Streamlit Audio Input (Standard Design)
         audio = st.audio_input("Hier sprechen")
         if audio:
             with st.spinner("Analyse läuft..."):

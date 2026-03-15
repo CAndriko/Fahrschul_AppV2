@@ -6,19 +6,19 @@ from datetime import datetime
 from openai import OpenAI
 
 # -----------------------------------------------------------------------------
-# 1. DATENVERWALTUNG
+# 1. DATA MANAGEMENT
 # -----------------------------------------------------------------------------
 DATA_FILE = "student_data.json"
 
 def load_data() -> dict:
-    """Lädt die Schülerdatenbank aus der JSON-Datei. Gibt ein leeres Dictionary zurück, falls keine existiert."""
+    """Lädt die Schülerdatenbank. Gibt ein leeres Dictionary zurück, falls keine existiert."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as file:
             return json.load(file)
     return {"students": {}}
 
 def save_data(data: dict) -> None:
-    """Speichert die übergebenen Daten sicher in der JSON-Datei."""
+    """Speichert die Datenstruktur sicher in der JSON-Datei."""
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
@@ -31,7 +31,7 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 def generate_export_text(student_name: str, logs: list) -> str:
-    """Erstellt eine saubere Textübersicht aller Fahrten für den Export."""
+    """Erstellt eine Textübersicht aller Fahrten für den Datei-Export."""
     text = f"FAHRSCHUL-AKTE: {student_name}\n" + "="*50 + "\n\n"
     for log in logs:
         text += f"Datum: {log['date']}\n" + "-"*50 + f"\nWhatsApp: {log['whatsapp_msg']}\n\nLogbuch:\n"
@@ -43,11 +43,11 @@ def generate_export_text(student_name: str, logs: list) -> str:
     return text
 
 # -----------------------------------------------------------------------------
-# 2. KI-LOGIK
+# 2. AI LOGIC
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
-    """Analysiert das aufgenommene Audio mit Whisper und wertet den Text mit dem schnellen Modell aus."""
+    """Analysiert das aufgenommene Audio mit Whisper und wertet den Text mit gpt-4o-mini aus."""
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
         client = OpenAI(api_key=api_key)
@@ -56,7 +56,7 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         temp_file = "temp_recording.wav"
         with open(temp_file, "wb") as f: f.write(audio_bytes)
         
-        # Transkription mit Whisper durchführen
+        # Transkription mit Whisper
         with open(temp_file, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
         
@@ -79,7 +79,7 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         - In 'note' keine Wortwiederholung der Kategorie!
         """
         
-        # KI-Analyse mit dem schnellen Modell (gpt-4o-mini)
+        # KI-Analyse
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
@@ -93,31 +93,42 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         return {"whatsapp_msg": f"Fehler: {str(e)}", "logbook": []}
 
 # -----------------------------------------------------------------------------
-# 3. OBERFLÄCHE & DESIGN
+# 3. UI & DESIGN
 # -----------------------------------------------------------------------------
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für erzwungenes weißes Design (Light Mode) zur Tarnung des Headers
+    # CSS für das makellose, weiße Design und den neuen Audio-Button
     st.markdown("""
         <style>
-        /* Gesamte App zwingend auf weißen Hintergrund und dunkle Schrift setzen */
+        /* App zwingend auf weißen Hintergrund setzen */
         .stApp { background-color: #FFFFFF !important; color: #000000 !important; }
         
-        /* Header ebenfalls weiß, damit er unsichtbar verschmilzt */
+        /* Header weiß machen, damit er unsichtbar wird */
         header[data-testid="stHeader"] { background-color: #FFFFFF !important; border: none !important; }
+        
+        /* FIX: Menü-Icon tiefschwarz machen, damit man es auf dem weißen Hintergrund sieht! */
+        button[data-testid="stSidebarCollapseIcon"] { color: #000000 !important; }
         
         /* Sidebar in einem sehr hellen Grau zur Abgrenzung */
         [data-testid="stSidebar"] { background-color: #F8F9FA !important; }
         
-        /* Texte erzwingen (falls Handy auf Dark Mode steht) */
+        /* Texte schwarz erzwingen */
         p, h1, h2, h3, h4, h5, h6, label { color: #000000 !important; }
         
         /* Blaue Buttons beibehalten */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        /* Störende Streamlit UI Elemente ausblenden */
+        /* NEU: Aufnahme-Bereich (Audio Input) modern und passend blau stylen */
+        [data-testid="stAudioInput"] {
+            background-color: #e6f2ff !important; /* Helles Eisblau */
+            border: 2px solid #007bff !important; /* Blauer Rahmen */
+            border-radius: 12px !important;
+            padding: 15px !important;
+        }
+        
+        /* Streamlit Cloud UI entfernen */
         [data-testid="stToolbar"] { display: none !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -127,7 +138,7 @@ def main():
     if "db" not in st.session_state: st.session_state.db = load_data()
     if "delete_confirm" not in st.session_state: st.session_state.delete_confirm = None
 
-    # --- SEITENLEISTE ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.title("🚘 Drive & Ride")
         st.subheader("Logbuch Michael")
@@ -162,7 +173,7 @@ def main():
                 if c2.button("Abbrechen", use_container_width=True):
                     st.session_state.delete_confirm = None; st.rerun()
 
-    # --- HAUPTBEREICH ---
+    # --- MAIN AREA ---
     st.title("🎙️ Fahrstunde")
     if not selected_student:
         st.info("Wähle links einen Schüler aus.")

@@ -38,7 +38,7 @@ def generate_export_text(student_name: str, logs: list) -> str:
     return text
 
 # -----------------------------------------------------------------------------
-# 2. KI-LOGIK (DER AUSFÜHRLICHE PROFI-PROMPT)
+# 2. KI-LOGIK (UNVERÄNDERT)
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
@@ -80,29 +80,17 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         return {"whatsapp_msg": f"Fehler: {str(e)}", "logbook": []}
 
 # -----------------------------------------------------------------------------
-# 3. OBERFLÄCHE & DESIGN (DER WEISSE BALKEN FIX)
+# 3. OBERFLÄCHE & DESIGN (UNVERÄNDERT)
 # -----------------------------------------------------------------------------
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für Blaue Buttons und transparenten Header
     st.markdown("""
         <style>
-        /* Blaue Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
-        
-        /* FIX: Weißen Balken unsichtbar machen */
-        header[data-testid="stHeader"] {
-            background-color: rgba(0,0,0,0) !important;
-            border-bottom: none !important;
-        }
-        
-        /* Sicherstellen, dass Sidebar-Knopf sichtbar bleibt */
-        button[data-testid="stSidebarCollapseIcon"] {
-            color: white !important;
-        }
-
+        header[data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; border-bottom: none !important; }
+        button[data-testid="stSidebarCollapseIcon"] { color: white !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         </style>
@@ -117,15 +105,18 @@ def main():
         st.subheader("Logbuch Michael")
         st.markdown("---")
         
+        # HIER IST DIE KORREKTUR: Formular statt einfacher Buttons
         with st.expander("👤 Schüler hinzufügen"):
-            n_in = st.text_input("Name", key="input_name")
-            p_in = st.text_input("Nummer", key="input_phone")
-            if st.button("Speichern", use_container_width=True):
-                if n_in:
+            with st.form("add_student_form", clear_on_submit=True):
+                n_in = st.text_input("Name")
+                p_in = st.text_input("Nummer")
+                submitted = st.form_submit_button("Speichern", use_container_width=True)
+                
+                if submitted and n_in:
                     st.session_state.db["students"][n_in] = {"phone": format_phone_number(p_in), "logs": []}
                     save_data(st.session_state.db)
-                    st.session_state.input_name = ""; st.session_state.input_phone = ""
-                    st.success("Gespeichert!"); st.rerun()
+                    st.success("Gespeichert!")
+                    st.rerun()
 
         s_list = list(st.session_state.db["students"].keys())
         selected_student = st.selectbox("📂 Aktiver Schüler", s_list) if s_list else None
@@ -144,7 +135,7 @@ def main():
                 if c2.button("Abbrechen", use_container_width=True):
                     st.session_state.delete_confirm = None; st.rerun()
 
-    # --- HAUPTBEREICH ---
+    # --- HAUPTBEREICH (UNVERÄNDERT) ---
     st.title("🎙️ Fahrstunde")
     if not selected_student:
         st.info("Wähle links einen Schüler aus.")
@@ -158,7 +149,6 @@ def main():
         if audio:
             with st.spinner("Analyse läuft..."):
                 res = analyze_driving_lesson(audio.getvalue(), selected_student)
-                
                 st.markdown("### 📱 WhatsApp Vorschau")
                 st.info(res.get("whatsapp_msg", ""))
                 
@@ -197,7 +187,6 @@ def main():
                     for i in l.get("logbook", []):
                         if isinstance(i, dict):
                             st.markdown(f"{i.get('status')} **{i.get('category')}**: {i.get('note')}")
-        else: st.info("Leer.")
 
 if __name__ == "__main__":
     main()

@@ -11,19 +11,16 @@ from openai import OpenAI
 DATA_FILE = "student_data.json"
 
 def load_data() -> dict:
-    """Lädt die Schülerdatenbank. Gibt ein leeres Dictionary zurück, falls keine existiert."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as file:
             return json.load(file)
     return {"students": {}}
 
 def save_data(data: dict) -> None:
-    """Speichert die Datenstruktur sicher in der JSON-Datei."""
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
 def format_phone_number(phone: str) -> str:
-    """Formatiert die eingegebene Telefonnummer passend für die WhatsApp-API."""
     cleaned = ''.join([c for c in phone if c.isdigit()])
     if not cleaned: return ""
     if cleaned.startswith("00"): cleaned = cleaned[2:]
@@ -31,7 +28,6 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 def generate_export_text(student_name: str, logs: list) -> str:
-    """Erstellt eine Textübersicht aller Fahrten für den Datei-Export."""
     text = f"FAHRSCHUL-AKTE: {student_name}\n" + "="*50 + "\n\n"
     for log in logs:
         text += f"Datum: {log['date']}\n" + "-"*50 + f"\nWhatsApp: {log['whatsapp_msg']}\n\nLogbuch:\n"
@@ -47,16 +43,13 @@ def generate_export_text(student_name: str, logs: list) -> str:
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
-    """Analysiert das aufgenommene Audio mit Whisper und wertet den Text mit gpt-4o-mini aus."""
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
         client = OpenAI(api_key=api_key)
         
-        # Temporäre Audiodatei erstellen
         temp_file = "temp_recording.wav"
         with open(temp_file, "wb") as f: f.write(audio_bytes)
         
-        # Transkription mit Whisper
         with open(temp_file, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
         
@@ -79,7 +72,6 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         - In 'note' keine Wortwiederholung der Kategorie!
         """
         
-        # KI-Analyse
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
@@ -87,7 +79,6 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         )
         
         if os.path.exists(temp_file): os.remove(temp_file)
-        
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         return {"whatsapp_msg": f"Fehler: {str(e)}", "logbook": []}
@@ -98,36 +89,12 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für das makellose, weiße Design und mobile Fixes (Holzhammer-Methode für das Menü-Icon)
+    # CSS auf das absolute Minimum reduziert: NUR die blauen Buttons.
+    # Streamlit kümmert sich jetzt wieder selbst um das Menü und Hell/Dunkel!
     st.markdown("""
         <style>
-        /* App zwingend auf weißen Hintergrund setzen */
-        .stApp { background-color: #FFFFFF !important; color: #000000 !important; }
-        
-        /* Header transparent machen, damit er keine Icons verdeckt */
-        header[data-testid="stHeader"] { background-color: transparent !important; border: none !important; }
-        
-        /* HOLZHAMMER: Jedes Icon/Button im Header MUSS schwarz sein */
-        header[data-testid="stHeader"] button * {
-            fill: #000000 !important;
-            color: #000000 !important;
-            stroke: #000000 !important;
-        }
-        
-        /* Sidebar komplett in hellem Grau zur Abgrenzung */
-        [data-testid="stSidebar"] { background-color: #F8F9FA !important; }
-        
-        /* Alle Standard-Texte schwarz erzwingen */
-        p, h1, h2, h3, h4, h5, h6, label, span { color: #000000 !important; }
-        
-        /* Blaue Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
-        
-        /* Streamlit Cloud UI Elemente restlos entfernen (Fork/GitHub Icon) */
-        [data-testid="stToolbar"] { display: none !important; }
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
     
@@ -178,9 +145,7 @@ def main():
     st.markdown(f"**Schüler:** {selected_student}")
     t1, t2 = st.tabs(["🎙️ Aufnahme", "🗂️ Archiv"])
 
-    # Tab 1: Neue Aufnahme analysieren
     with t1:
-        # Native Streamlit Audio Input (Standard Design)
         audio = st.audio_input("Hier sprechen")
         if audio:
             with st.spinner("Analyse läuft..."):
@@ -214,7 +179,6 @@ def main():
                     st.session_state.db["students"][selected_student]["logs"].insert(0, log)
                     save_data(st.session_state.db); st.success("Gespeichert!")
 
-    # Tab 2: Archiv ansehen
     with t2:
         logs = st.session_state.db["students"][selected_student].get("logs", [])
         if logs:

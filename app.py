@@ -98,37 +98,34 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für das makellose, weiße Design und den neuen Audio-Button
+    # CSS für das makellose, weiße Design und mobile Fixes
     st.markdown("""
         <style>
         /* App zwingend auf weißen Hintergrund setzen */
         .stApp { background-color: #FFFFFF !important; color: #000000 !important; }
         
-        /* Header weiß machen, damit er unsichtbar wird */
+        /* Header komplett weiß machen */
         header[data-testid="stHeader"] { background-color: #FFFFFF !important; border: none !important; }
         
-        /* FIX: Menü-Icon tiefschwarz machen, damit man es auf dem weißen Hintergrund sieht! */
+        /* FIX: Mobile Menü-Icon (Hamburger) tiefschwarz machen */
+        [data-testid="collapsedControl"] { color: #000000 !important; }
+        [data-testid="collapsedControl"] svg { fill: #000000 !important; color: #000000 !important; }
+        
+        /* Desktop Menü-Icon schwarz machen */
         button[data-testid="stSidebarCollapseIcon"] { color: #000000 !important; }
+        button[data-testid="stSidebarCollapseIcon"] svg { fill: #000000 !important; color: #000000 !important; }
         
-        /* Sidebar in einem sehr hellen Grau zur Abgrenzung */
-        [data-testid="stSidebar"] { background-color: #F8F9FA !important; }
+        /* Sidebar komplett weiß, wie gewünscht */
+        [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
         
-        /* Texte schwarz erzwingen */
-        p, h1, h2, h3, h4, h5, h6, label { color: #000000 !important; }
+        /* Alle Standard-Texte schwarz erzwingen */
+        p, h1, h2, h3, h4, h5, h6, label, span { color: #000000 !important; }
         
-        /* Blaue Buttons beibehalten */
+        /* Blaue Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        /* NEU: Aufnahme-Bereich (Audio Input) modern und passend blau stylen */
-        [data-testid="stAudioInput"] {
-            background-color: #e6f2ff !important; /* Helles Eisblau */
-            border: 2px solid #007bff !important; /* Blauer Rahmen */
-            border-radius: 12px !important;
-            padding: 15px !important;
-        }
-        
-        /* Streamlit Cloud UI entfernen */
+        /* Streamlit Cloud UI Elemente entfernen */
         [data-testid="stToolbar"] { display: none !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -184,6 +181,7 @@ def main():
 
     # Tab 1: Neue Aufnahme analysieren
     with t1:
+        # Native Streamlit Audio Input
         audio = st.audio_input("Hier sprechen")
         if audio:
             with st.spinner("Analyse läuft..."):

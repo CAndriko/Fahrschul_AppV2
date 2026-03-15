@@ -11,16 +11,19 @@ from openai import OpenAI
 DATA_FILE = "student_data.json"
 
 def load_data() -> dict:
+    """Lädt die Schülerdatenbank. Gibt ein leeres Dictionary zurück, falls keine existiert."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as file:
             return json.load(file)
     return {"students": {}}
 
 def save_data(data: dict) -> None:
+    """Speichert die Datenstruktur sicher in der JSON-Datei."""
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
 def format_phone_number(phone: str) -> str:
+    """Formatiert die eingegebene Telefonnummer passend für die WhatsApp-API."""
     cleaned = ''.join([c for c in phone if c.isdigit()])
     if not cleaned: return ""
     if cleaned.startswith("00"): cleaned = cleaned[2:]
@@ -28,6 +31,7 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 def generate_export_text(student_name: str, logs: list) -> str:
+    """Erstellt eine Textübersicht aller Fahrten für den Datei-Export."""
     text = f"FAHRSCHUL-AKTE: {student_name}\n" + "="*50 + "\n\n"
     for log in logs:
         text += f"Datum: {log['date']}\n" + "-"*50 + f"\nWhatsApp: {log['whatsapp_msg']}\n\nLogbuch:\n"
@@ -43,35 +47,41 @@ def generate_export_text(student_name: str, logs: list) -> str:
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
+    """Analysiert das aufgenommene Audio mit Whisper und wertet den Text mit gpt-4o-mini aus."""
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
         client = OpenAI(api_key=api_key)
         
+        # Temporäre Audiodatei erstellen
         temp_file = "temp_recording.wav"
         with open(temp_file, "wb") as f: f.write(audio_bytes)
         
+        # Transkription mit Whisper
         with open(temp_file, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
         
+        # KI-Prompt mit strikter Trennung von WhatsApp (Du-Form) und internem Protokoll (3. Person)
         prompt = f"""
-        Du bist ein präziser Fahrlehrer-Assistent. Analysiere die Fahrt von {student_name}.
-        Text: '{transcript.text}'
+        Du bist ein professioneller Fahrlehrer-Assistent. Analysiere das Transkript der Fahrt von {student_name}.
+        Transkript: '{transcript.text}'
         
-        Erstelle ein JSON mit dieser Struktur:
+        Erstelle ein JSON mit exakt dieser Struktur:
         {{
-          "whatsapp_msg": "Ausführliche, herzliche Nachricht mit vielen Emojis. Erwähne JEDEN Punkt im Detail.",
+          "whatsapp_msg": "Ausführliche, herzliche Nachricht an den Schüler (in der 'Du'-Form) mit vielen Emojis. Erwähne JEDEN besprochenen Punkt im Detail.",
           "logbook": [
-            {{ "status": "🟢", "category": "Thema", "note": "Ausführliche fachliche Bewertung" }}
+            {{ "status": "🟢", "category": "Thema", "note": "Ausführliche, sachliche Bewertung" }}
           ]
         }}
         
         WICHTIG FÜR DAS LOGBUCH:
-        - Erstelle für JEDEN besprochenen Aspekt einen EIGENEN Eintrag.
-        - Die 'note' muss eine AUSFÜHRLICHE, professionelle Bewertung sein.
-        - Nutze NUR 🟢, 🟡, 🔴. 
-        - In 'note' keine Wortwiederholung der Kategorie!
+        - Erstelle für JEDEN Aspekt einen eigenen Eintrag.
+        - Die 'note' ist für die INTERNE Fahrschul-Akte (für den Chef/Prüfer). 
+        - Schreibe in der 'note' ZWINGEND objektiv, sachlich und in der 3. Person (z.B. "Der Schüler hat...", "Gute Fahrzeugbeherrschung", NICHT "Du hast...").
+        - Nutze NUR 🟢, 🟡, 🔴 als Status.
+        - In 'note' keine Wortwiederholung der Kategorie.
         """
         
+        # KI-Analyse
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
@@ -79,6 +89,7 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         )
         
         if os.path.exists(temp_file): os.remove(temp_file)
+        
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         return {"whatsapp_msg": f"Fehler: {str(e)}", "logbook": []}
@@ -89,8 +100,7 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS auf das absolute Minimum reduziert: NUR die blauen Buttons.
-    # Streamlit kümmert sich jetzt wieder selbst um das Menü und Hell/Dunkel!
+    # Minimales CSS für blaue Buttons
     st.markdown("""
         <style>
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }

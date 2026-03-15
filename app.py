@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import urllib.parse
 from datetime import datetime
 from openai import OpenAI
 
@@ -10,16 +11,19 @@ from openai import OpenAI
 DATA_FILE = "student_data.json"
 
 def load_data() -> dict:
+    """Lädt die Schülerdatenbank aus der JSON-Datei. Gibt ein leeres Dictionary zurück, falls keine existiert."""
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as file:
             return json.load(file)
     return {"students": {}}
 
 def save_data(data: dict) -> None:
+    """Speichert die übergebenen Daten sicher in der JSON-Datei."""
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
 
 def format_phone_number(phone: str) -> str:
+    """Formatiert die eingegebene Telefonnummer passend für die WhatsApp-API."""
     cleaned = ''.join([c for c in phone if c.isdigit()])
     if not cleaned: return ""
     if cleaned.startswith("00"): cleaned = cleaned[2:]
@@ -27,6 +31,7 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 def generate_export_text(student_name: str, logs: list) -> str:
+    """Erstellt eine saubere Textübersicht aller Fahrten für den Export."""
     text = f"FAHRSCHUL-AKTE: {student_name}\n" + "="*50 + "\n\n"
     for log in logs:
         text += f"Datum: {log['date']}\n" + "-"*50 + f"\nWhatsApp: {log['whatsapp_msg']}\n\nLogbuch:\n"
@@ -38,15 +43,20 @@ def generate_export_text(student_name: str, logs: list) -> str:
     return text
 
 # -----------------------------------------------------------------------------
-# 2. KI-LOGIK (UNVERÄNDERT)
+# 2. KI-LOGIK
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
+    """Analysiert das aufgenommene Audio mit Whisper und wertet den Text mit dem schnellen Modell aus."""
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
         client = OpenAI(api_key=api_key)
+        
+        # Temporäre Audiodatei erstellen
         temp_file = "temp_recording.wav"
         with open(temp_file, "wb") as f: f.write(audio_bytes)
+        
+        # Transkription mit Whisper durchführen
         with open(temp_file, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
         
@@ -69,27 +79,35 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
         - In 'note' keine Wortwiederholung der Kategorie!
         """
         
+        # KI-Analyse mit dem schnellen Modell (gpt-4o-mini)
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
             messages=[{"role": "system", "content": "Gründlicher Fahrlehrer-Assistent."}, {"role": "user", "content": prompt}]
         )
+        
         if os.path.exists(temp_file): os.remove(temp_file)
+        
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         return {"whatsapp_msg": f"Fehler: {str(e)}", "logbook": []}
 
 # -----------------------------------------------------------------------------
-# 3. OBERFLÄCHE & DESIGN (UNVERÄNDERT)
+# 3. OBERFLÄCHE & DESIGN
 # -----------------------------------------------------------------------------
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
+    # CSS für sauberes Design: Blaue Buttons und unsichtbarer Header
     st.markdown("""
         <style>
         div.stButton > button[kind="primary"] { background-color: #007bff !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
-        header[data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; border-bottom: none !important; }
+        header[data-testid="stHeader"] { 
+            background: transparent !important; 
+            background-color: transparent !important;
+            border-bottom: none !important; 
+        }
         button[data-testid="stSidebarCollapseIcon"] { color: white !important; }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -99,13 +117,13 @@ def main():
     if "db" not in st.session_state: st.session_state.db = load_data()
     if "delete_confirm" not in st.session_state: st.session_state.delete_confirm = None
 
-    # --- SIDEBAR ---
+    # --- SEITENLEISTE ---
     with st.sidebar:
         st.title("🚘 Drive & Ride")
         st.subheader("Logbuch Michael")
         st.markdown("---")
         
-        # HIER IST DIE KORREKTUR: Formular statt einfacher Buttons
+        # Formular für neue Schüler (verhindert Streamlit-Abstürze)
         with st.expander("👤 Schüler hinzufügen"):
             with st.form("add_student_form", clear_on_submit=True):
                 n_in = st.text_input("Name")
@@ -121,13 +139,14 @@ def main():
         s_list = list(st.session_state.db["students"].keys())
         selected_student = st.selectbox("📂 Aktiver Schüler", s_list) if s_list else None
 
+        # Löschfunktion
         if selected_student:
             st.markdown("---")
             if st.session_state.delete_confirm != selected_student:
                 if st.button("🗑️ Schüler löschen", use_container_width=True):
                     st.session_state.delete_confirm = selected_student; st.rerun()
             else:
-                st.error(f"'{selected_student}' löschen?")
+                st.error(f"'{selected_student}' wirklich löschen?")
                 c1, c2 = st.columns(2)
                 if c1.button("Ja, weg damit", type="primary", use_container_width=True):
                     del st.session_state.db["students"][selected_student]
@@ -135,7 +154,7 @@ def main():
                 if c2.button("Abbrechen", use_container_width=True):
                     st.session_state.delete_confirm = None; st.rerun()
 
-    # --- HAUPTBEREICH (UNVERÄNDERT) ---
+    # --- HAUPTBEREICH ---
     st.title("🎙️ Fahrstunde")
     if not selected_student:
         st.info("Wähle links einen Schüler aus.")
@@ -144,18 +163,21 @@ def main():
     st.markdown(f"**Schüler:** {selected_student}")
     t1, t2 = st.tabs(["🎙️ Aufnahme", "🗂️ Archiv"])
 
+    # Tab 1: Neue Aufnahme analysieren
     with t1:
         audio = st.audio_input("Hier sprechen")
         if audio:
             with st.spinner("Analyse läuft..."):
                 res = analyze_driving_lesson(audio.getvalue(), selected_student)
+                
                 st.markdown("### 📱 WhatsApp Vorschau")
                 st.info(res.get("whatsapp_msg", ""))
                 
                 phone = st.session_state.db["students"][selected_student].get("phone", "")
                 if phone:
-                    msg = res.get("whatsapp_msg", "").replace(" ", "%20").replace("\n", "%0A")
-                    st.link_button("In WhatsApp senden", f"https://wa.me/{phone}?text={msg}", type="primary", use_container_width=True)
+                    # Emoji-Fix durch urllib.parse.quote angewendet
+                    msg_encoded = urllib.parse.quote(res.get("whatsapp_msg", ""))
+                    st.link_button("In WhatsApp senden", f"https://wa.me/{phone}?text={msg_encoded}", type="primary", use_container_width=True)
                 
                 st.markdown("---")
                 st.markdown("### 🚦 Internes Ampel-Logbuch")
@@ -172,11 +194,13 @@ def main():
                     else: c2.write(str(item))
                 
                 st.markdown("---")
+                # Fahrt abspeichern
                 if st.button("💾 In die Akte speichern", type="primary", use_container_width=True):
                     log = {"date": datetime.now().strftime("%d.%m.%Y, %H:%M"), "whatsapp_msg": res.get("whatsapp_msg", ""), "logbook": res.get("logbook", [])}
                     st.session_state.db["students"][selected_student]["logs"].insert(0, log)
                     save_data(st.session_state.db); st.success("Gespeichert!")
 
+    # Tab 2: Archiv ansehen
     with t2:
         logs = st.session_state.db["students"][selected_student].get("logs", [])
         if logs:
@@ -187,6 +211,7 @@ def main():
                     for i in l.get("logbook", []):
                         if isinstance(i, dict):
                             st.markdown(f"{i.get('status')} **{i.get('category')}**: {i.get('note')}")
+        else: st.info("Leer.")
 
 if __name__ == "__main__":
     main()

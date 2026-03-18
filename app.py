@@ -150,12 +150,38 @@ def main():
                     st.session_state.delete_confirm = None; st.rerun()
 
     # --- MAIN AREA ---
-    st.title("🎙️ Fahrstunde")
     if not selected_student:
-        st.info("Wähle links einen Schüler aus.")
+        # 1. Professionelles Start-Dashboard (Empty State)
+        st.title("👋 Willkommen, Michael")
+        st.markdown("Wähle links einen Schüler aus der Liste oder füge einen neuen hinzu, um die nächste Fahrstunde zu protokollieren.")
+        st.markdown("---")
+        
+        total_students = len(st.session_state.db["students"])
+        total_logs = sum(len(data.get("logs", [])) for data in st.session_state.db["students"].values())
+        
+        col1, col2 = st.columns(2)
+        col1.metric("👥 Aktive Schüler", total_students)
+        col2.metric("📝 Erfasste Fahrten", total_logs)
         return
 
-    st.markdown(f"**Schüler:** {selected_student}")
+    # 2. Schüler-Metriken & Schnellaktionen
+    st.title(f"🎓 {selected_student}")
+    logs = st.session_state.db["students"][selected_student].get("logs", [])
+    phone = st.session_state.db["students"][selected_student].get("phone", "")
+    
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🚗 Fahrten", len(logs))
+    
+    last_date = logs[0]["date"].split(",")[0] if logs else "-"
+    m2.metric("📅 Letzte Fahrt", last_date)
+    
+    with m3:
+        st.write("") # Abstandhalter für saubere Ausrichtung
+        if phone:
+            st.link_button("💬 WhatsApp öffnen", f"https://wa.me/{phone}", use_container_width=True)
+            
+    st.markdown("---")
+
     t1, t2 = st.tabs(["🎙️ Aufnahme", "🗂️ Archiv"])
 
     with t1:
@@ -169,7 +195,6 @@ def main():
                 st.markdown("### 📱 WhatsApp Vorschau")
                 st.info(res.get("whatsapp_msg", ""))
                 
-                phone = st.session_state.db["students"][selected_student].get("phone", "")
                 if phone:
                     msg_encoded = urllib.parse.quote(res.get("whatsapp_msg", ""))
                     st.link_button("In WhatsApp senden", f"https://wa.me/{phone}?text={msg_encoded}", type="primary", use_container_width=True)
@@ -199,16 +224,34 @@ def main():
                     st.rerun()
 
     with t2:
-        logs = st.session_state.db["students"][selected_student].get("logs", [])
         if logs:
-            st.download_button("📄 Akte exportieren", generate_export_text(selected_student, logs), file_name=f"{selected_student}.txt", use_container_width=True)
+            # 3. Ampel-Statistik für den Lernfortschritt berechnen
+            green = yellow = red = 0
+            for l in logs:
+                for i in l.get("logbook", []):
+                    if isinstance(i, dict):
+                        status = i.get("status", "")
+                        if "🟢" in status: green += 1
+                        elif "🟡" in status: yellow += 1
+                        elif "🔴" in status: red += 1
+            
+            st.markdown("### 📊 Gesamte Ampel-Statistik")
+            s1, s2, s3 = st.columns(3)
+            s1.metric("🟢 Top", green)
+            s2.metric("🟡 Üben", yellow)
+            s3.metric("🔴 Kritisch", red)
+            st.markdown("---")
+            
+            st.download_button("📄 Komplette Akte exportieren", generate_export_text(selected_student, logs), file_name=f"{selected_student}.txt", use_container_width=True)
+            st.markdown("---")
+            
             for l in logs:
                 with st.expander(f"📅 Fahrt am {l['date']}"):
                     st.write(l.get("whatsapp_msg", ""))
                     for i in l.get("logbook", []):
                         if isinstance(i, dict):
                             st.markdown(f"{i.get('status')} **{i.get('category')}**: {i.get('note')}")
-        else: st.info("Leer.")
+        else: st.info("Noch keine Fahrten gespeichert.")
 
 if __name__ == "__main__":
     main()

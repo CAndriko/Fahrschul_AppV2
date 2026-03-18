@@ -109,15 +109,23 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # Session State Initialisierung (inklusive Key für Audio-Reset)
+    # Session State Initialisierung
     if "db" not in st.session_state: st.session_state.db = load_data()
     if "delete_confirm" not in st.session_state: st.session_state.delete_confirm = None
     if "audio_key" not in st.session_state: st.session_state.audio_key = 0
+    if "active_student" not in st.session_state: st.session_state.active_student = None
 
     # --- SIDEBAR ---
     with st.sidebar:
         st.title("🚘 Drive & Ride")
         st.subheader("Logbuch Michael")
+        st.markdown("---")
+        
+        # Dedizierter Home-Button ganz oben
+        if st.button("🏠 Startseite (Dashboard)", type="primary", use_container_width=True):
+            st.session_state.active_student = None
+            st.rerun()
+            
         st.markdown("---")
         
         with st.expander("👤 Schüler hinzufügen"):
@@ -132,13 +140,25 @@ def main():
                     st.success("Gespeichert!")
                     st.rerun()
 
-        # Navigation mit "Startseite" als Standard-Option
+        # Saubere Schüler-Navigation
         s_list = list(st.session_state.db["students"].keys())
-        options = ["🏠 Startseite"] + s_list
-        selected_option = st.selectbox("📂 Navigation & Schüler", options)
+        options = ["-- Schüler wählen --"] + s_list
         
-        # Logik: Wenn Startseite gewählt, setze selected_student auf None (Dashboard wird gezeigt)
-        selected_student = None if selected_option == "🏠 Startseite" else selected_option
+        current_index = 0
+        if st.session_state.active_student in s_list:
+            current_index = s_list.index(st.session_state.active_student) + 1
+            
+        selected_option = st.selectbox("📂 Meine Schüler", options, index=current_index)
+        
+        # Logik: Aktualisiere den aktiven Schüler basierend auf dem Dropdown
+        if selected_option != "-- Schüler wählen --" and selected_option != st.session_state.active_student:
+            st.session_state.active_student = selected_option
+            st.rerun()
+        elif selected_option == "-- Schüler wählen --" and st.session_state.active_student is not None:
+            st.session_state.active_student = None
+            st.rerun()
+
+        selected_student = st.session_state.active_student
 
         if selected_student:
             st.markdown("---")
@@ -150,7 +170,10 @@ def main():
                 c1, c2 = st.columns(2)
                 if c1.button("Ja, weg damit", type="primary", use_container_width=True):
                     del st.session_state.db["students"][selected_student]
-                    save_data(st.session_state.db); st.session_state.delete_confirm = None; st.rerun()
+                    save_data(st.session_state.db)
+                    st.session_state.active_student = None
+                    st.session_state.delete_confirm = None
+                    st.rerun()
                 if c2.button("Abbrechen", use_container_width=True):
                     st.session_state.delete_confirm = None; st.rerun()
 

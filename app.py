@@ -100,22 +100,30 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS-Injektion für Design und Layout-Optimierung
+# CSS-Injektion für Design und aggressive Layout-Optimierung (Mobile & Cloud)
     st.markdown("""
         <style>
         /* Blaue Primär-Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        /* Reduziert den weißen Rand oben und unten im Hauptbereich */
+        /* Zwingt den Hauptcontainer absolut nach oben */
         .block-container {
-            padding-top: 2rem !important;
-            padding-bottom: 1rem !important;
+            padding-top: 1rem !important; 
+            margin-top: 0rem !important;
         }
         
-        /* Reduziert den Abstand des Streamlit-Headers leicht, ohne das Menü zu verstecken */
-        header {
+        /* Nimmt dem Streamlit-Header den physischen Platz weg, hält das Menü aber klickbar */
+        header[data-testid="stHeader"] {
+            height: 0px !important;
+            min-height: 0px !important;
             background-color: transparent !important;
+        }
+        
+        /* Entfernt den unsichtbaren Abstandhalter der Cloud-Toolbar */
+        div[data-testid="stToolbar"] {
+            right: 1rem !important;
+            top: 0.5rem !important;
         }
         </style>
     """, unsafe_allow_html=True)

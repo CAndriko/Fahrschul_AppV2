@@ -100,20 +100,19 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-# CSS-Injektion für Design
+    # CSS-Injektion: Versteckt Footer und Wasserzeichen, optimiert Buttons
     st.markdown("""
         <style>
-        /* Blaue Primär-Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
-        
-        /* Versteckt den kompletten Footer und das rote Streamlit-Wasserzeichen */
         footer {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
     
+    # Session State Initialisierung (inklusive Key für Audio-Reset)
     if "db" not in st.session_state: st.session_state.db = load_data()
     if "delete_confirm" not in st.session_state: st.session_state.delete_confirm = None
+    if "audio_key" not in st.session_state: st.session_state.audio_key = 0
 
     # --- SIDEBAR ---
     with st.sidebar:
@@ -160,7 +159,9 @@ def main():
     t1, t2 = st.tabs(["🎙️ Aufnahme", "🗂️ Archiv"])
 
     with t1:
-        audio = st.audio_input("Hier sprechen")
+        # Audio-Input mit dynamischem Key für den automatischen Reset nach dem Speichern
+        audio = st.audio_input("Hier sprechen", key=f"audio_{st.session_state.audio_key}")
+        
         if audio:
             with st.spinner("Analyse läuft..."):
                 res = analyze_driving_lesson(audio.getvalue(), selected_student)
@@ -188,10 +189,14 @@ def main():
                     else: c2.write(str(item))
                 
                 st.markdown("---")
-                if st.button("💾 In die Akte speichern", type="primary", use_container_width=True):
+                if st.button("💾 In die Akte speichern & Abschließen", type="primary", use_container_width=True):
                     log = {"date": datetime.now().strftime("%d.%m.%Y, %H:%M"), "whatsapp_msg": res.get("whatsapp_msg", ""), "logbook": res.get("logbook", [])}
                     st.session_state.db["students"][selected_student]["logs"].insert(0, log)
-                    save_data(st.session_state.db); st.success("Gespeichert!")
+                    save_data(st.session_state.db)
+                    
+                    # State-Reset: Erhöht den Key, wodurch das Audio-Feld komplett zurückgesetzt wird
+                    st.session_state.audio_key += 1
+                    st.rerun()
 
     with t2:
         logs = st.session_state.db["students"][selected_student].get("logs", [])

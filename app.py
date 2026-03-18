@@ -132,8 +132,13 @@ def main():
                     st.success("Gespeichert!")
                     st.rerun()
 
+        # Navigation mit "Startseite" als Standard-Option
         s_list = list(st.session_state.db["students"].keys())
-        selected_student = st.selectbox("📂 Aktiver Schüler", s_list) if s_list else None
+        options = ["🏠 Startseite"] + s_list
+        selected_option = st.selectbox("📂 Navigation & Schüler", options)
+        
+        # Logik: Wenn Startseite gewählt, setze selected_student auf None (Dashboard wird gezeigt)
+        selected_student = None if selected_option == "🏠 Startseite" else selected_option
 
         if selected_student:
             st.markdown("---")

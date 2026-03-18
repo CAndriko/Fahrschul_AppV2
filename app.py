@@ -100,11 +100,23 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # Minimales CSS für blaue Buttons
+    # CSS-Injektion für Design und Layout-Optimierung
     st.markdown("""
         <style>
+        /* Blaue Primär-Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
+        
+        /* Reduziert den weißen Rand oben und unten im Hauptbereich */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 1rem !important;
+        }
+        
+        /* Reduziert den Abstand des Streamlit-Headers leicht, ohne das Menü zu verstecken */
+        header {
+            background-color: transparent !important;
+        }
         </style>
     """, unsafe_allow_html=True)
     

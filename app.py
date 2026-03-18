@@ -107,23 +107,20 @@ def main():
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
         
-        /* Zwingt den Hauptcontainer absolut nach oben */
-        .block-container {
-            padding-top: 1rem !important; 
-            margin-top: 0rem !important;
+        /* Hauptcontainer Padding komplett auf 0 setzen */
+        .block-container, div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 0rem !important; 
         }
         
-        /* Nimmt dem Streamlit-Header den physischen Platz weg, hält das Menü aber klickbar */
-        header[data-testid="stHeader"] {
-            height: 0px !important;
-            min-height: 0px !important;
+        /* Den Titel (h1) der Seite mit negativem Margin nach oben ziehen */
+        h1 {
+            margin-top: -3rem !important;
+            padding-top: 0rem !important;
+        }
+        
+        /* Header transparent, aber Menü klickbar */
+        header {
             background-color: transparent !important;
-        }
-        
-        /* Entfernt den unsichtbaren Abstandhalter der Cloud-Toolbar */
-        div[data-testid="stToolbar"] {
-            right: 1rem !important;
-            top: 0.5rem !important;
         }
         </style>
     """, unsafe_allow_html=True)

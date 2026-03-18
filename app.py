@@ -106,6 +106,9 @@ def main():
         /* Blaue Primär-Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
+        
+        /* Versteckt den kompletten Footer und das rote Streamlit-Wasserzeichen */
+        footer {visibility: hidden;}
         </style>
     """, unsafe_allow_html=True)
     

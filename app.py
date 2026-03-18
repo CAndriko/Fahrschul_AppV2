@@ -122,7 +122,7 @@ def main():
         st.markdown("---")
         
         # Dedizierter Home-Button ganz oben
-        if st.button("🏠 Startseite (Dashboard)", type="primary", use_container_width=True):
+        if st.button("🏠 Startseite ", type="primary", use_container_width=True):
             st.session_state.active_student = None
             st.rerun()
             

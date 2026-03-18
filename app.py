@@ -100,18 +100,12 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-# CSS-Injektion für Design und sicheres Layout
+# CSS-Injektion für Design
     st.markdown("""
         <style>
         /* Blaue Primär-Buttons */
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
         div.stLinkButton > a { background-color: #007bff !important; color: white !important; border: none !important; }
-        
-        /* Sauberer Kompromiss: Reduziert den weißen Raum auf das sichere Minimum unter dem Menü */
-        .block-container {
-            padding-top: 3.5rem !important; 
-            padding-bottom: 1rem !important;
-        }
         </style>
     """, unsafe_allow_html=True)
     

@@ -3,48 +3,76 @@ import json
 import os
 import urllib.parse
 from datetime import datetime
+import requests
 from openai import OpenAI
-from supabase import create_client, Client
 
 # -----------------------------------------------------------------------------
-# 1. DATABASE MANAGEMENT (SUPABASE)
+# 1. DATABASE MANAGEMENT (SUPABASE via REST API)
 # -----------------------------------------------------------------------------
-@st.cache_resource
-def get_supabase_client() -> Client:
-    """Initialisiert den Supabase-Client sicher über die Streamlit Secrets."""
-    url = st.secrets["SUPABASE_URL"]
+def get_supabase_headers() -> dict:
     key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
+
+def get_supabase_url() -> str:
+    return f"{st.secrets['SUPABASE_URL']}/rest/v1/students"
 
 def load_data() -> dict:
-    """Lädt alle Schüler aus der Supabase-Datenbank und formatiert sie für die App."""
-    supabase = get_supabase_client()
-    response = supabase.table("students").select("*").execute()
+    url = get_supabase_url()
+    headers = get_supabase_headers()
     
-    db_data = {"students": {}}
-    for row in response.data:
-        db_data["students"][row["name"]] = {
-            "phone": row.get("phone", ""),
-            "logs": row.get("logs", [])
-        }
-    return db_data
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        
+        db_data = {"students": {}}
+        for row in data:
+            db_data["students"][row["name"]] = {
+                "phone": row.get("phone", ""),
+                "logs": row.get("logs", [])
+            }
+        return db_data
+    except Exception:
+        return {"students": {}}
 
-def save_student(name: str, phone: str, logs: list) -> None:
-    """Speichert oder aktualisiert einen einzelnen Schüler in der Supabase-Datenbank."""
-    supabase = get_supabase_client()
-    supabase.table("students").upsert({
+def save_student(name: str, phone: str, logs: list) -> bool:
+    url = f"{get_supabase_url()}?on_conflict=name"
+    headers = get_supabase_headers()
+    headers["Prefer"] = "resolution=merge-duplicates"
+    
+    payload = {
         "name": name,
         "phone": phone,
         "logs": logs
-    }).execute()
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        err_msg = response.text if 'response' in locals() else str(e)
+        st.error(f"Cloud-Fehler beim Speichern: {err_msg}")
+        return False
 
-def delete_student_from_db(name: str) -> None:
-    """Löscht einen Schüler endgültig aus der Supabase-Datenbank."""
-    supabase = get_supabase_client()
-    supabase.table("students").delete().eq("name", name).execute()
+def delete_student_from_db(name: str) -> bool:
+    url = f"{get_supabase_url()}?name=eq.{urllib.parse.quote(name)}"
+    headers = get_supabase_headers()
+    
+    try:
+        response = requests.delete(url, headers=headers)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        err_msg = response.text if 'response' in locals() else str(e)
+        st.error(f"Cloud-Fehler beim Löschen: {err_msg}")
+        return False
 
 def format_phone_number(phone: str) -> str:
-    """Formatiert die eingegebene Telefonnummer passend für die WhatsApp-API."""
     cleaned = ''.join([c for c in phone if c.isdigit()])
     if not cleaned: return ""
     if cleaned.startswith("00"): cleaned = cleaned[2:]
@@ -52,7 +80,6 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 def generate_export_text(student_name: str, logs: list) -> str:
-    """Erstellt eine Textübersicht aller Fahrten für den Datei-Export."""
     export_text = f"FAHRSCHUL-AKTE: {student_name}\n" + "="*50 + "\n\n"
     for log in logs:
         export_text += f"Datum: {log['date']}\n" + "-"*50 + f"\nWhatsApp: {log['whatsapp_msg']}\n\nLogbuch:\n"
@@ -69,7 +96,6 @@ def generate_export_text(student_name: str, logs: list) -> str:
 # -----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
-    """Analysiert das Audio mit Whisper und wertet den Text mit gpt-4o-mini aus."""
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
         client = OpenAI(api_key=api_key)
@@ -122,7 +148,6 @@ def analyze_driving_lesson(audio_bytes: bytes, student_name: str) -> dict:
 def main():
     st.set_page_config(page_title="Logbuch Michael", page_icon="🚘", layout="centered")
 
-    # CSS für das UI-Design (versteckt Footer und optimiert Buttons)
     st.markdown("""
         <style>
         div.stButton > button[kind="primary"] { background-color: #007bff !important; color: white !important; border: none !important; }
@@ -131,12 +156,10 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # Session States initialisieren
     if "delete_confirm" not in st.session_state: st.session_state.delete_confirm = None
     if "audio_key" not in st.session_state: st.session_state.audio_key = 0
     if "active_student" not in st.session_state: st.session_state.active_student = None
 
-    # Daten aus Supabase laden
     db_data = load_data()
 
     # --- SIDEBAR ---
@@ -159,9 +182,9 @@ def main():
                 
                 if submitted and name_input:
                     formatted_phone = format_phone_number(phone_input)
-                    save_student(name_input, formatted_phone, [])
-                    st.success("Gespeichert!")
-                    st.rerun()
+                    if save_student(name_input, formatted_phone, []):
+                        st.success("Gespeichert!")
+                        st.rerun()
 
         student_list = list(db_data["students"].keys())
         options = ["-- Schüler wählen --"] + student_list
@@ -191,10 +214,10 @@ def main():
                 st.error(f"'{active_student}' wirklich löschen?")
                 col1, col2 = st.columns(2)
                 if col1.button("Ja, weg damit", type="primary", use_container_width=True):
-                    delete_student_from_db(active_student)
-                    st.session_state.active_student = None
-                    st.session_state.delete_confirm = None
-                    st.rerun()
+                    if delete_student_from_db(active_student):
+                        st.session_state.active_student = None
+                        st.session_state.delete_confirm = None
+                        st.rerun()
                 if col2.button("Abbrechen", use_container_width=True):
                     st.session_state.delete_confirm = None
                     st.rerun()
@@ -271,10 +294,9 @@ def main():
                         "logbook": analysis_result.get("logbook", [])
                     }
                     student_logs.insert(0, new_log_entry)
-                    save_student(active_student, student_phone, student_logs)
-                    
-                    st.session_state.audio_key += 1
-                    st.rerun()
+                    if save_student(active_student, student_phone, student_logs):
+                        st.session_state.audio_key += 1
+                        st.rerun()
 
     with tab2:
         if student_logs:
